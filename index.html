@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Envios Express — Check Cashing</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --g:#1a4731;--gm:#2d6a4f;--gl:#d8f3dc;--gs:#f0faf2;
+  --a:#b45309;--al:#fef3c7;--as2:#fffbeb;
+  --r:#991b1b;--rl:#fee2e2;--rs:#fff5f5;
+  --b:#1e40af;--bl:#dbeafe;--bs:#eff6ff;
+  --g9:#111827;--g8:#1f2937;--g7:#374151;--g6:#4b5563;--g5:#6b7280;
+  --g4:#9ca3af;--g3:#d1d5db;--g2:#e5e7eb;--g1:#f3f4f6;--g0:#f9fafb;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--g1);color:var(--g9);min-height:100vh;}
+.app{display:flex;flex-direction:column;min-height:100vh;}
+.topbar{background:var(--g);color:#fff;display:flex;align-items:center;gap:16px;padding:0 24px;height:56px;border-bottom:2px solid var(--gm);}
+.topbar-logo{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;letter-spacing:-.5px;}
+.topbar-sub{font-size:12px;opacity:.7;border-left:1px solid rgba(255,255,255,.3);padding-left:12px;}
+.topbar-spacer{flex:1;}
+.topbar-date{font-family:'DM Mono',monospace;font-size:11px;opacity:.6;}
+.sync-pill{font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,.15);display:flex;align-items:center;gap:5px;}
+.sdot{width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;}
+.sdot.busy{background:#fbbf24;animation:pulse 1s infinite;}
+.sdot.err{background:#f87171;}
+.main{display:flex;flex:1;}
+.sidebar{width:220px;min-width:220px;background:#fff;border-right:1px solid var(--g2);padding:16px 0;display:flex;flex-direction:column;gap:4px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;font-size:13px;color:var(--g6);cursor:pointer;border-left:3px solid transparent;transition:all .15s;}
+.nav-item:hover{background:var(--g0);color:var(--g9);}
+.nav-item.active{background:var(--gs);color:var(--g);border-left-color:var(--g);font-weight:500;}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;}
+.nav-section{padding:12px 20px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--g4);}
+.content{flex:1;overflow:auto;}
+.panel{display:none;padding:24px;}
+.panel.active{display:block;}
+.page-header{margin-bottom:20px;}
+.page-header h1{font-family:'Syne',sans-serif;font-size:22px;font-weight:600;}
+.page-header p{font-size:13px;color:var(--g5);margin-top:3px;}
+.card{background:#fff;border-radius:10px;border:1px solid var(--g2);padding:20px;margin-bottom:16px;}
+.card-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:600;margin-bottom:14px;}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-size:11px;font-weight:500;color:var(--g5);text-transform:uppercase;letter-spacing:.5px;}
+.field input,.field select,.field textarea{border:1px solid var(--g3);border-radius:6px;padding:8px 10px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--g9);background:#fff;transition:border .15s;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--gm);box-shadow:0 0 0 3px rgba(45,106,79,.1);}
+.field input.ro{background:var(--g0);color:var(--g6);}
+.form-row{display:grid;gap:14px;margin-bottom:14px;}
+.c2{grid-template-columns:1fr 1fr;}.c3{grid-template-columns:1fr 1fr 1fr;}
+.fs-title{font-size:12px;font-weight:600;color:var(--g5);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px;}
+.form-divider{border:none;border-top:1px solid var(--g2);margin:18px 0;}
+textarea{resize:vertical;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.bp{background:var(--g);color:#fff;}.bp:hover{background:var(--gm);}
+.bs{background:#fff;color:var(--g7);border:1px solid var(--g3);}.bs:hover{background:var(--g0);}
+.bd{background:var(--rl);color:var(--r);border:1px solid #fca5a5;}.bd:hover{background:#fecaca;}
+.bw{background:var(--al);color:var(--a);border:1px solid #fcd34d;}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;}
+.bgn{background:var(--gl);color:var(--g);}.brd{background:var(--rl);color:var(--r);}
+.bamb{background:var(--al);color:var(--a);}.bbl{background:var(--bl);color:var(--b);}
+.alert{border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;}
+.ar{background:var(--rs);color:var(--r);border:1px solid #fca5a5;}
+.aa{background:var(--as2);color:var(--a);border:1px solid #fcd34d;}
+.ag{background:var(--gs);color:var(--g);border:1px solid #86efac;}
+.ab{background:var(--bs);color:var(--b);border:1px solid #93c5fd;}
+.search-mega{background:var(--g);border-radius:12px;padding:24px;margin-bottom:20px;color:#fff;}
+.search-mega h2{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:14px;}
+.search-row{display:flex;gap:10px;}
+.si-wrap{flex:1;position:relative;}
+.si-wrap input{width:100%;padding:10px 14px 10px 38px;border-radius:8px;border:2px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:14px;font-family:'DM Sans',sans-serif;}
+.si-wrap input::placeholder{color:rgba(255,255,255,.6);}
+.si-wrap input:focus{outline:none;border-color:rgba(255,255,255,.7);}
+.si-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);opacity:.7;}
+.sbtn{background:#fff;color:var(--g);font-weight:600;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:'Syne',sans-serif;font-size:13px;}
+.sbtn:hover{background:var(--g1);}
+.stabs{display:flex;gap:6px;margin-top:12px;}
+.stab{padding:5px 14px;border-radius:20px;font-size:12px;cursor:pointer;background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.2);}
+.stab.active{background:#fff;color:var(--g);font-weight:600;}
+.result-card{background:#fff;border-radius:10px;border:1px solid var(--g2);overflow:hidden;margin-bottom:16px;}
+.result-header{display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid var(--g1);}
+.av{width:48px;height:48px;border-radius:50%;background:var(--gl);color:var(--g);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:16px;flex-shrink:0;}
+.av.banned{background:var(--rl);color:var(--r);}.av.warn{background:var(--al);color:var(--a);}
+.result-name{font-family:'Syne',sans-serif;font-size:16px;font-weight:600;}
+.result-meta{font-size:12px;color:var(--g5);display:flex;gap:12px;margin-top:3px;flex-wrap:wrap;}
+.result-badges{display:flex;gap:6px;margin-left:auto;align-items:center;flex-wrap:wrap;}
+.status-banner{padding:10px 20px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;}
+.sok{background:var(--gs);color:var(--g);}.sban{background:var(--rs);color:var(--r);}
+.swarn{background:var(--as2);color:var(--a);}.sexp{background:var(--rs);color:var(--r);}
+.result-body{padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
+.info-item label{font-size:10px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.5px;}
+.info-item p{font-size:13px;color:var(--g8);margin-top:2px;}
+.result-footer{display:flex;gap:8px;padding:12px 20px;border-top:1px solid var(--g1);background:var(--g0);}
+.photos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px;}
+.photo-slot{border:2px dashed var(--g3);border-radius:8px;padding:12px;text-align:center;cursor:pointer;transition:all .2s;position:relative;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.photo-slot:hover{border-color:var(--gm);background:var(--gs);}
+.photo-slot img{max-width:100%;max-height:100px;object-fit:contain;border-radius:4px;}
+.photo-slot p{font-size:11px;color:var(--g5);margin-top:6px;}
+.photo-slot .rm-btn{position:absolute;top:6px;right:6px;background:var(--r);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:2;}
+.photo-slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead{background:var(--g0);}
+th{padding:10px 12px;text-align:left;font-weight:600;color:var(--g6);font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--g2);}
+td{padding:10px 12px;border-bottom:1px solid var(--g1);color:var(--g7);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--g0);}
+tr.ban-row td{background:var(--rs);color:var(--r);}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
+.stat-card{background:#fff;border-radius:8px;border:1px solid var(--g2);padding:14px 16px;}
+.stat-label{font-size:11px;color:var(--g5);font-weight:500;text-transform:uppercase;letter-spacing:.4px;}
+.stat-num{font-family:'Syne',sans-serif;font-size:26px;font-weight:700;margin-top:4px;line-height:1;}
+.stat-sub{font-size:11px;color:var(--g4);margin-top:4px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.modal-wrap{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center;}
+.modal-wrap.open{display:flex;}
+.modal{background:#fff;border-radius:12px;padding:24px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.modal-header h2{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--g5);padding:4px;line-height:1;}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--g2);}
+.iok{color:var(--g);font-weight:500;}.iwarn{color:var(--a);font-weight:500;}.ibad{color:var(--r);font-weight:500;}
+.empty-state{text-align:center;padding:40px;color:var(--g4);font-size:14px;}
+.loading-state{text-align:center;padding:30px;color:var(--g5);font-size:13px;}
+.mono{font-family:'DM Mono',monospace;font-size:12px;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="topbar">
+  <div class="topbar-logo">📦 Envios Express</div>
+  <div class="topbar-sub">Check Cashing · Money Transfers</div>
+  <div class="topbar-spacer"></div>
+  <div class="sync-pill"><div class="sdot busy" id="sdot"></div><span id="stxt">Conectando...</span></div>
+  <div class="topbar-date" id="clock"></div>
+</div>
+
+<div class="main">
+<div class="sidebar">
+  <div class="nav-section">Principal</div>
+  <div class="nav-item active" data-panel="buscar" onclick="nav(this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Buscar Cliente
+  </div>
+  <div class="nav-item" data-panel="nuevo" onclick="nav(this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>Nuevo Cliente
+  </div>
+  <div class="nav-section">Empresas & Cheques</div>
+  <div class="nav-item" data-panel="empresas" onclick="nav(this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Directorio Empresas
+  </div>
+  <div class="nav-item" data-panel="cheques" onclick="nav(this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Cheques Procesados
+  </div>
+  <div class="nav-section">Administración</div>
+  <div class="nav-item" data-panel="nsf" onclick="nav(this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>NSF / Bloqueados
+  </div>
+  <div class="nav-item" data-panel="dashboard" onclick="nav(this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard
+  </div>
+</div>
+
+<div class="content">
+
+<!-- BUSCAR -->
+<div class="panel active" id="panel-buscar">
+  <div class="page-header"><h1>Buscar Cliente</h1><p>Busca por teléfono, nombre o empresa</p></div>
+  <div class="search-mega">
+    <h2>¿Quién es el cliente?</h2>
+    <div class="search-row">
+      <div class="si-wrap">
+        <svg class="si-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="searchInput" placeholder="Teléfono, nombre o empresa..." oninput="debounceSearch()" onkeydown="if(event.key==='Enter')doSearch()">
+      </div>
+      <button class="sbtn" onclick="doSearch()">BUSCAR</button>
+    </div>
+    <div class="stabs">
+      <div class="stab active" onclick="setSearchType(this,'all')">Todo</div>
+      <div class="stab" onclick="setSearchType(this,'phone')">📞 Teléfono</div>
+      <div class="stab" onclick="setSearchType(this,'name')">👤 Nombre</div>
+      <div class="stab" onclick="setSearchType(this,'maker')">🏢 Empresa</div>
+    </div>
+  </div>
+  <div id="searchResults"></div>
+</div>
+
+<!-- NUEVO CLIENTE -->
+<div class="panel" id="panel-nuevo">
+  <div class="page-header"><h1>Registrar Nuevo Cliente</h1></div>
+  <div class="card">
+    <div class="fs-title">Información Personal</div>
+    <div class="form-row c2">
+      <div class="field"><label>Nombre Completo *</label><input type="text" id="n_nombre" placeholder="APELLIDOS, NOMBRE(S)"></div>
+      <div class="field"><label>Teléfono *</label><input type="text" id="n_tel" placeholder="3135559999"></div>
+    </div>
+    <div class="form-row c2">
+      <div class="field"><label>Dirección</label><input type="text" id="n_dir" placeholder="Calle, Ciudad, Estado, ZIP"></div>
+      <div class="field"><label>Fecha Entrada al Trabajo</label><input type="date" id="n_fecha_trabajo" oninput="calcAntig()"></div>
+    </div>
+    <div class="form-row c2">
+      <div class="field"><label>Patrón / Tel Patrón</label><input type="text" id="n_patron"></div>
+      <div class="field"><label>Antigüedad</label><input type="text" id="n_antiguedad" class="ro" readonly></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="fs-title">Identificación</div>
+    <div class="form-row c3">
+      <div class="field"><label>Tipo de ID *</label>
+        <select id="n_id_tipo"><option value="">Seleccionar...</option><option>MX-CREDENCIAL DE ELECTOR</option><option>MX-PASAPORTE</option><option>PDI- DOCUMENTO PERSONAL DE IDENTIFICACION</option><option>GT- MATRICULA CONSULAR</option><option>COL- CEDULA DE COLOMBIA</option><option>HN- CEDULA DE HONDURAS</option><option>NI- PASAPORTE</option><option>CR- PASAPORTE</option><option>US-DRIVER LICENSE</option><option>US-STATE ID</option><option>Otro</option></select>
+      </div>
+      <div class="field"><label>ID Físico</label><select id="n_id_fisico"><option>SI</option><option>NO</option></select></div>
+      <div class="field"><label>Fecha de Expiración</label><input type="date" id="n_id_exp"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="fs-title">Clasificación</div>
+    <div class="form-row c3">
+      <div class="field"><label>Empresa (Maker)</label><input type="text" id="n_maker"></div>
+      <div class="field"><label>Categoría VIP</label><select id="n_vip"><option value="">Sin VIP</option><option value="A">A — Alto volumen</option><option value="B">B — Regular</option><option value="C">C — Ocasional</option></select></div>
+      <div class="field"><label>Autorizado +$3,000</label><select id="n_auto3k"><option value="">No autorizado</option><option value="A +3000">Sí — Autorizado</option></select></div>
+    </div>
+    <div class="form-row c2" style="margin-top:10px">
+      <div class="field"><label>Tipo de Cheque</label><select id="n_cheque_tipo"><option value="M">M — Manual</option><option value="C">C — Computarizado</option></select></div>
+      <div class="field"><label>Fecha Firmado Contrato</label><input type="date" id="n_contrato"></div>
+    </div>
+    <div class="form-row" style="margin-top:10px"><div class="field"><label>Notas</label><textarea id="n_notas" rows="2"></textarea></div></div>
+  </div>
+  <div class="card">
+    <div class="fs-title">Fotografías</div>
+    <div class="alert ab"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Pega imágenes con Ctrl+V o haz clic para subir.</div>
+    <div class="photos-grid">
+      <div class="photo-slot" id="ns-foto" onclick="trig('nu-foto')"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--g4)" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><p>Foto Cliente</p><input type="file" id="nu-foto" accept="image/*" onchange="prevPhoto(this,'ns-foto','_nFoto')"></div>
+      <div class="photo-slot" id="ns-id" onclick="trig('nu-id')"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--g4)" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><p>Identificación</p><input type="file" id="nu-id" accept="image/*" onchange="prevPhoto(this,'ns-id','_nFotoId')"></div>
+      <div class="photo-slot" id="ns-firma" onclick="trig('nu-firma')"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--g4)" stroke-width="1.5"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg><p>Firma</p><input type="file" id="nu-firma" accept="image/*" onchange="prevPhoto(this,'ns-firma','_nFotoFirma')"></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px">
+    <button class="btn bp" onclick="saveNewClient()">✔ Guardar Cliente</button>
+    <button class="btn bs" onclick="clearNew()">Limpiar</button>
+  </div>
+</div>
+
+<!-- EMPRESAS -->
+<div class="panel" id="panel-empresas">
+  <div class="page-header"><h1>Directorio de Empresas</h1></div>
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:flex-end">
+      <div class="field" style="flex:1"><label>Buscar</label><input type="text" id="empSearch" placeholder="Nombre de empresa..." oninput="renderEmpresas()"></div>
+      <button class="btn bs" onclick="openModal('mEmpresa')">+ Agregar</button>
+    </div>
+  </div>
+  <div class="card"><table><thead><tr><th>Empresa</th><th>Estado</th><th>No. Cuenta</th><th>Acciones</th></tr></thead><tbody id="empBody"></tbody></table></div>
+</div>
+
+<!-- CHEQUES -->
+<div class="panel" id="panel-cheques">
+  <div class="page-header"><h1>Cheques Procesados</h1></div>
+  <div class="card">
+    <div class="form-row c2">
+      <div class="field"><label>Buscar</label><input type="text" id="chkSearch" placeholder="Cliente o empresa..." oninput="renderCheques()"></div>
+      <div class="field"><label>Fecha</label><input type="date" id="chkFecha"></div>
+    </div>
+    <button class="btn bp" onclick="openModal('mCheque')" style="margin-top:8px">+ Registrar Cheque</button>
+  </div>
+  <div class="card"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Empresa</th><th>Monto</th><th>Tipo</th><th>Contrato</th><th>Notas</th></tr></thead><tbody id="chkBody"></tbody></table></div>
+</div>
+
+<!-- NSF -->
+<div class="panel" id="panel-nsf">
+  <div class="page-header"><h1>NSF / Empresas Bloqueadas</h1></div>
+  <div class="alert ar">⛔ <strong>ATENCIÓN:</strong> Empresas bloqueadas aparecen en ROJO en todas las búsquedas. Solo rehabilitar si recuperaron los fondos.</div>
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:flex-end">
+      <div class="field" style="flex:1"><label>Buscar empresa</label><input type="text" id="nsfSearch" placeholder="Nombre..." oninput="renderNSF()"></div>
+      <button class="btn bd" onclick="openModal('mBloquear')">⛔ Bloquear Empresa</button>
+    </div>
+  </div>
+  <div class="card"><table><thead><tr><th>Empresa</th><th>Motivo</th><th>Fecha</th><th>Monto NSF</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="nsfBody"></tbody></table></div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="panel" id="panel-dashboard">
+  <div class="page-header"><h1>Dashboard</h1></div>
+  <div class="stat-grid" id="statsGrid"><div class="loading-state">Cargando...</div></div>
+  <div class="grid-2">
+    <div class="card"><div class="card-title">IDs por Vencer (90 días)</div><table><thead><tr><th>Cliente</th><th>Tipo</th><th>Vence</th><th>Días</th></tr></thead><tbody id="expBody"></tbody></table></div>
+    <div class="card"><div class="card-title">Clientes VIP</div><table><thead><tr><th>Cliente</th><th>VIP</th><th>Empresa</th><th>Tel</th></tr></thead><tbody id="vipBody"></tbody></table></div>
+  </div>
+</div>
+
+</div></div></div>
+
+<!-- MODALES -->
+<div class="modal-wrap" id="mCliente">
+  <div class="modal">
+    <div class="modal-header"><h2 id="mClienteTitle">Expediente</h2><button class="modal-close" onclick="closeModal('mCliente')">✕</button></div>
+    <div id="mClienteBody"></div>
+    <div class="modal-footer">
+      <button class="btn bs" onclick="closeModal('mCliente')">Cerrar</button>
+      <button class="btn bd btn-sm" id="btnBanEmp" onclick="banClientEmpresa()">⛔ Banear Empresa</button>
+      <button class="btn bp" onclick="saveEdit()">Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="mCheque">
+  <div class="modal">
+    <div class="modal-header"><h2>Registrar Cheque</h2><button class="modal-close" onclick="closeModal('mCheque')">✕</button></div>
+    <div class="form-row c2"><div class="field"><label>Cliente</label><input type="text" id="ck_cliente"></div><div class="field"><label>Empresa</label><input type="text" id="ck_empresa"></div></div>
+    <div class="form-row c2" style="margin-top:12px"><div class="field"><label>Monto $</label><input type="number" id="ck_monto" oninput="chkContrato()"></div><div class="field"><label>Fecha</label><input type="date" id="ck_fecha"></div></div>
+    <div class="form-row c2" style="margin-top:12px"><div class="field"><label>Tipo</label><select id="ck_tipo"><option value="M">M — Manual</option><option value="C">C — Computarizado</option></select></div><div class="field"><label>No. Cuenta</label><input type="text" id="ck_cuenta"></div></div>
+    <div id="ck_alert" style="display:none;margin-top:12px" class="alert aa">⚠️ <strong>Cheque ≥ $3,000 — Se requiere CONTRATO FIRMADO.</strong></div>
+    <div class="form-row" style="margin-top:12px"><div class="field"><label>Notas</label><textarea id="ck_notas" rows="2"></textarea></div></div>
+    <div class="modal-footer"><button class="btn bs" onclick="closeModal('mCheque')">Cancelar</button><button class="btn bp" onclick="saveCheque()">✔ Registrar</button></div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="mBloquear">
+  <div class="modal">
+    <div class="modal-header"><h2>⛔ Bloquear Empresa NSF</h2><button class="modal-close" onclick="closeModal('mBloquear')">✕</button></div>
+    <div class="alert ar">Al bloquear, aparecerá aviso rojo en TODAS las búsquedas.</div>
+    <div class="form-row c2"><div class="field"><label>Empresa</label><input type="text" id="bl_empresa"></div><div class="field"><label>Monto NSF $</label><input type="number" id="bl_monto"></div></div>
+    <div class="form-row" style="margin-top:12px"><div class="field"><label>Motivo</label><textarea id="bl_motivo" rows="2"></textarea></div></div>
+    <div class="modal-footer"><button class="btn bs" onclick="closeModal('mBloquear')">Cancelar</button><button class="btn bd" onclick="doBloquear()">⛔ Confirmar Bloqueo</button></div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="mEmpresa">
+  <div class="modal">
+    <div class="modal-header"><h2>Agregar Empresa</h2><button class="modal-close" onclick="closeModal('mEmpresa')">✕</button></div>
+    <div class="form-row c2"><div class="field"><label>Nombre</label><input type="text" id="em_nombre"></div><div class="field"><label>No. Cuenta</label><input type="text" id="em_cuenta"></div></div>
+    <div class="form-row" style="margin-top:12px"><div class="field"><label>Notas</label><textarea id="em_notas" rows="2"></textarea></div></div>
+    <div class="modal-footer"><button class="btn bs" onclick="closeModal('mEmpresa')">Cancelar</button><button class="btn bp" onclick="saveEmpresa()">Guardar</button></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// ⚙️ CONFIGURACIÓN — Solo cambia esta línea
+// ============================================================
+const API_URL = 'https://script.google.com/macros/s/TU_DEPLOYMENT_ID_AQUI/exec';
+
+// ============================================================
+// ESTADO GLOBAL
+// ============================================================
+let CACHE = { nsf: [], empresas: [], cheques: [] };
+let searchType = 'all';
+let editingClient = null;
+let _nFoto = '', _nFotoId = '', _nFotoFirma = '';
+let _eFoto = '', _eFotoId = '', _eFotoFirma = '';
+
+// ============================================================
+// JSONP — La solución real al CORS con Apps Script
+// Crea un <script> tag que llama al API con ?callback=fnName
+// Apps Script responde: fnName({...datos...})
+// Esto evita completamente el bloqueo de CORS
+// ============================================================
+let _cbCount = 0;
+function jsonp(params, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_gs_cb_' + (++_cbCount);
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error('Timeout — verifica que el Apps Script esté publicado como "Anyone"'));
+    }, timeoutMs);
+
+    window[cbName] = (data) => {
+      cleanup();
+      resolve(data);
+    };
+
+    function cleanup() {
+      clearTimeout(timeout);
+      delete window[cbName];
+      const el = document.getElementById(cbName);
+      if (el) el.remove();
+    }
+
+    const qs = Object.entries({ ...params, callback: cbName })
+      .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v))
+      .join('&');
+
+    const script = document.createElement('script');
+    script.id = cbName;
+    script.src = API_URL + '?' + qs;
+    script.onerror = () => {
+      cleanup();
+      reject(new Error('Error de red — verifica tu conexión a internet'));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+// Para acciones que envían datos grandes (fotos base64), los comprimimos
+async function apiCall(params) {
+  setSyncing(true);
+  try {
+    const result = await jsonp(params);
+    setSyncing(false, false);
+    return result;
+  } catch(e) {
+    setSyncing(false, true);
+    console.error('API Error:', e);
+    return { error: e.message };
+  }
+}
+
+// Para guardar datos, serializa el objeto en el parámetro "data"
+async function apiSave(action, data) {
+  return apiCall({ action, data: encodeURIComponent(JSON.stringify(data)) });
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.onload = async () => {
+  updateClock();
+  setInterval(updateClock, 1000);
+  await loadAll();
+};
+
+async function loadAll() {
+  const [nsfRes, empRes] = await Promise.all([
+    apiCall({ action: 'getEmpresasNSF' }),
+    apiCall({ action: 'getEmpresas' })
+  ]);
+  if (nsfRes.nsf)       CACHE.nsf      = nsfRes.nsf;
+  if (empRes.empresas)  CACHE.empresas = empRes.empresas;
+  renderEmpresas();
+  renderNSF();
+}
+
+// ============================================================
+// SYNC INDICATOR
+// ============================================================
+function setSyncing(on, err) {
+  const dot = document.getElementById('sdot');
+  const txt = document.getElementById('stxt');
+  if (on)       { dot.className = 'sdot busy'; txt.textContent = 'Sincronizando...'; }
+  else if (err) { dot.className = 'sdot err';  txt.textContent = 'Sin conexión'; }
+  else          { dot.className = 'sdot';       txt.textContent = 'Google Sheets ✓'; }
+}
+
+// ============================================================
+// NAVEGACIÓN
+// ============================================================
+function nav(el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + el.dataset.panel).classList.add('active');
+  const p = el.dataset.panel;
+  if (p === 'empresas') renderEmpresas();
+  if (p === 'cheques')  renderCheques();
+  if (p === 'nsf')      renderNSF();
+  if (p === 'dashboard') loadDashboard();
+}
+
+// ============================================================
+// BÚSQUEDA
+// ============================================================
+let _st = null;
+function debounceSearch() { clearTimeout(_st); _st = setTimeout(doSearch, 450); }
+function setSearchType(el, type) {
+  document.querySelectorAll('.stab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active'); searchType = type; doSearch();
+}
+
+async function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  const el = document.getElementById('searchResults');
+  if (!q) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="loading-state">🔍 Buscando en Google Sheets...</div>';
+
+  const res = await apiCall({ action: 'getClientes', q, type: searchType });
+  if (res.error) {
+    el.innerHTML = `<div class="alert ar">❌ ${res.error}<br><small>Verifica que el Apps Script esté publicado y el API_URL sea correcto.</small></div>`;
+    return;
+  }
+  const list = res.clientes || [];
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state">No se encontró ningún cliente.<br><button class="btn bp btn-sm" style="margin-top:12px" onclick="document.querySelector('[data-panel=nuevo]').click()">+ Registrar cliente nuevo</button></div>`;
+    return;
+  }
+  el.innerHTML = list.map(renderClientCard).join('');
+}
+
+function renderClientCard(c) {
+  const isBanned = CACHE.nsf.some(n => (n.empresa||'').toUpperCase() === (c.maker||'').toUpperCase() && n.estado === 'BLOQUEADO');
+  const idSt = idStatus(c.id_exp);
+  const ini  = (c.nombre||'??').split(' ').slice(0,2).map(w=>w[0]||'').join('');
+  const avCl = isBanned ? 'banned' : idSt === 'exp' ? 'warn' : '';
+
+  const banner = isBanned
+    ? `<div class="status-banner sban">⛔ EMPRESA "${c.maker}" BLOQUEADA POR NSF — NO CAMBIAR CHEQUES</div>`
+    : idSt === 'exp'
+      ? `<div class="status-banner sexp">⚠️ IDENTIFICACIÓN VENCIDA — Solicitar nueva ID vigente antes de cambiar</div>`
+      : idSt === 'soon'
+        ? `<div class="status-banner swarn">⚠️ Identificación próxima a vencer — Verificar antes de cambiar</div>`
+        : `<div class="status-banner sok">✔ Cliente verificado — Identificación vigente</div>`;
+
+  const cj = JSON.stringify(c).replace(/'/g, "\\'");
+  return `<div class="result-card">
+    ${banner}
+    <div class="result-header">
+      <div class="av ${avCl}">${ini}</div>
+      <div>
+        <div class="result-name">${c.nombre}</div>
+        <div class="result-meta">
+          <span>📞 ${c.tel}</span>
+          ${c.dir   ? `<span>📍 ${c.dir}</span>`   : ''}
+          ${c.maker ? `<span>🏢 ${c.maker}</span>` : ''}
+        </div>
+      </div>
+      <div class="result-badges">
+        ${isBanned     ? '<span class="badge brd">⛔ NSF</span>'         : ''}
+        ${c.vip        ? `<span class="badge bbl">VIP ${c.vip}</span>`   : ''}
+        ${c.auto3k     ? '<span class="badge bgn">✔ Auth +$3k</span>'    : ''}
+        ${idSt==='exp' ? '<span class="badge brd">ID Vencida</span>'      : ''}
+      </div>
+    </div>
+    <div class="result-body">
+      <div class="info-item"><label>Identificación</label><p>${c.id_tipo||'—'}</p></div>
+      <div class="info-item"><label>ID Físico</label><p>${c.id_fisico||'—'}</p></div>
+      <div class="info-item"><label>Expira</label><p class="${idSt==='ok'?'iok':idSt==='soon'?'iwarn':'ibad'}">${fmtDate(c.id_exp)}</p></div>
+      <div class="info-item"><label>Tipo Cheque</label><p>${c.cheque_tipo==='M'?'Manual':'Computarizado'}</p></div>
+      <div class="info-item"><label>Contrato $3k</label><p>${c.contrato?'✔ '+fmtDate(c.contrato):'—'}</p></div>
+      <div class="info-item"><label>Antigüedad</label><p>${c.antiguedad||'—'}</p></div>
+      ${c.foto ? `<div class="info-item"><label>Foto</label><img src="${c.foto}" style="width:48px;height:48px;object-fit:cover;border-radius:50%"></div>` : ''}
+    </div>
+    <div class="result-footer">
+      <button class="btn bp btn-sm" onclick='openClientModal(${cj})'>Ver Expediente</button>
+      <button class="btn bs btn-sm" onclick='prefillCheque(${cj})'>+ Cheque</button>
+      ${isBanned ? `<button class="btn bw btn-sm" onclick="rehabilitar('${(c.maker||'').replace(/'/g,"\\'")}')">✔ Rehabilitar</button>` : ''}
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// MODAL CLIENTE
+// ============================================================
+function openClientModal(c) {
+  editingClient = c;
+  _eFoto = c.foto||''; _eFotoId = c.foto_id||''; _eFotoFirma = c.foto_firma||'';
+  document.getElementById('mClienteTitle').textContent = c.nombre;
+  document.getElementById('btnBanEmp').style.display = c.maker ? '' : 'none';
+
+  const opts = ['MX-CREDENCIAL DE ELECTOR','MX-PASAPORTE','PDI- DOCUMENTO PERSONAL DE IDENTIFICACION','GT- MATRICULA CONSULAR','COL- CEDULA DE COLOMBIA','HN- CEDULA DE HONDURAS','NI- PASAPORTE','CR- PASAPORTE','US-DRIVER LICENSE','US-STATE ID','Otro'];
+  const selID = opts.map(o => `<option ${c.id_tipo===o?'selected':''}>${o}</option>`).join('');
+  const isBanned = CACHE.nsf.some(n => (n.empresa||'').toUpperCase() === (c.maker||'').toUpperCase() && n.estado === 'BLOQUEADO');
+
+  document.getElementById('mClienteBody').innerHTML = `
+    <div class="fs-title">Información Personal</div>
+    <div class="form-row c2"><div class="field"><label>Nombre</label><input id="e_nombre" value="${esc(c.nombre)}"></div><div class="field"><label>Teléfono</label><input id="e_tel" value="${esc(c.tel)}"></div></div>
+    <div class="form-row" style="margin-top:10px"><div class="field"><label>Dirección</label><input id="e_dir" value="${esc(c.dir)}"></div></div>
+    <div class="form-row c2" style="margin-top:10px"><div class="field"><label>Patrón/Tel</label><input id="e_patron" value="${esc(c.patron)}"></div><div class="field"><label>Antigüedad</label><input id="e_antig" value="${esc(c.antiguedad)}"></div></div>
+    <hr class="form-divider">
+    <div class="fs-title">Identificación</div>
+    <div class="form-row c3"><div class="field"><label>Tipo</label><select id="e_id_tipo"><option value="">—</option>${selID}</select></div><div class="field"><label>ID Físico</label><select id="e_id_fisico"><option ${c.id_fisico==='SI'?'selected':''}>SI</option><option ${c.id_fisico==='NO'?'selected':''}>NO</option></select></div><div class="field"><label>Expira</label><input id="e_id_exp" type="date" value="${c.id_exp||''}"></div></div>
+    <hr class="form-divider">
+    <div class="fs-title">Clasificación</div>
+    <div class="form-row c3"><div class="field"><label>Maker</label><input id="e_maker" value="${esc(c.maker)}"></div><div class="field"><label>VIP</label><select id="e_vip"><option value="" ${!c.vip?'selected':''}>—</option><option value="A" ${c.vip==='A'?'selected':''}>A</option><option value="B" ${c.vip==='B'?'selected':''}>B</option><option value="C" ${c.vip==='C'?'selected':''}>C</option></select></div><div class="field"><label>Auth +$3k</label><select id="e_auto3k"><option value="" ${!c.auto3k?'selected':''}>No</option><option value="A +3000" ${c.auto3k?'selected':''}>Sí</option></select></div></div>
+    <div class="form-row c2" style="margin-top:10px"><div class="field"><label>Tipo Cheque</label><select id="e_cheque_tipo"><option value="M" ${c.cheque_tipo==='M'?'selected':''}>M — Manual</option><option value="C" ${c.cheque_tipo==='C'?'selected':''}>C — Computarizado</option></select></div><div class="field"><label>Contrato +$3k</label><input id="e_contrato" type="date" value="${c.contrato||''}"></div></div>
+    <div class="form-row" style="margin-top:10px"><div class="field"><label>Notas</label><textarea id="e_notas" rows="2">${esc(c.notas)}</textarea></div></div>
+    <hr class="form-divider">
+    <div class="fs-title">Fotos</div>
+    <div class="photos-grid">
+      <div class="photo-slot" id="es-foto" onclick="trig('eu-foto')">${c.foto?`<img src="${c.foto}"><button class="rm-btn" onclick="rmPhoto(event,'es-foto','_eFoto')">✕</button>`:'<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--g4)" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'}<p>Foto Cliente</p><input type="file" id="eu-foto" accept="image/*" onchange="prevPhoto(this,'es-foto','_eFoto')"></div>
+      <div class="photo-slot" id="es-id" onclick="trig('eu-id')">${c.foto_id?`<img src="${c.foto_id}"><button class="rm-btn" onclick="rmPhoto(event,'es-id','_eFotoId')">✕</button>`:'<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--g4)" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>'}<p>Identificación</p><input type="file" id="eu-id" accept="image/*" onchange="prevPhoto(this,'es-id','_eFotoId')"></div>
+      <div class="photo-slot" id="es-firma" onclick="trig('eu-firma')">${c.foto_firma?`<img src="${c.foto_firma}"><button class="rm-btn" onclick="rmPhoto(event,'es-firma','_eFotoFirma')">✕</button>`:'<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--g4)" stroke-width="1.5"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>'}<p>Firma</p><input type="file" id="eu-firma" accept="image/*" onchange="prevPhoto(this,'es-firma','_eFotoFirma')"></div>
+    </div>
+    ${isBanned ? `<div class="alert ar" style="margin-top:12px">⛔ Empresa "${c.maker}" BLOQUEADA por NSF</div>` : ''}
+  `;
+  openModal('mCliente');
+}
+
+async function saveEdit() {
+  if (!editingClient) return;
+  const data = {
+    id: editingClient.id,
+    nombre: v('e_nombre'), tel: v('e_tel'), dir: v('e_dir'),
+    patron: v('e_patron'), antiguedad: v('e_antig'),
+    id_tipo: v('e_id_tipo'), id_fisico: v('e_id_fisico'), id_exp: v('e_id_exp'),
+    maker: v('e_maker'), vip: v('e_vip'), auto3k: v('e_auto3k'),
+    cheque_tipo: v('e_cheque_tipo'), contrato: v('e_contrato'), notas: v('e_notas'),
+    foto: _eFoto, foto_id: _eFotoId, foto_firma: _eFotoFirma
+  };
+  const res = await apiSave('updateCliente', data);
+  if (res.error) { alert('Error: ' + res.error); return; }
+  closeModal('mCliente');
+  doSearch();
+  alert('✔ Cambios guardados en Google Sheets.');
+}
+
+function banClientEmpresa() {
+  const maker = document.getElementById('e_maker')?.value;
+  if (maker) { document.getElementById('bl_empresa').value = maker; closeModal('mCliente'); openModal('mBloquear'); }
+}
+
+// ============================================================
+// NUEVO CLIENTE
+// ============================================================
+async function saveNewClient() {
+  const nombre = v('n_nombre').trim().toUpperCase();
+  const tel    = v('n_tel').trim();
+  if (!nombre || !tel) { alert('Nombre y teléfono son requeridos.'); return; }
+
+  const data = {
+    nombre, tel, dir: v('n_dir'), maker: v('n_maker').toUpperCase(),
+    vip: v('n_vip'), auto3k: v('n_auto3k'), cheque_tipo: v('n_cheque_tipo'),
+    id_tipo: v('n_id_tipo'), id_fisico: v('n_id_fisico'), id_exp: v('n_id_exp'),
+    contrato: v('n_contrato'), fecha_trabajo: v('n_fecha_trabajo'),
+    antiguedad: v('n_antiguedad'), patron: v('n_patron'), notas: v('n_notas'),
+    foto: _nFoto, foto_id: _nFotoId, foto_firma: _nFotoFirma
+  };
+  const res = await apiSave('saveCliente', data);
+  if (res.error) { alert('Error al guardar: ' + res.error); return; }
+  alert('✔ Cliente guardado en Google Sheets.\nID: ' + res.id);
+  clearNew();
+}
+
+function clearNew() {
+  ['n_nombre','n_tel','n_dir','n_maker','n_patron','n_notas'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['n_vip','n_auto3k','n_cheque_tipo','n_id_tipo'].forEach(id => { const el=document.getElementById(id); if(el) el.selectedIndex=0; });
+  ['n_id_exp','n_contrato','n_fecha_trabajo','n_antiguedad'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  _nFoto=''; _nFotoId=''; _nFotoFirma='';
+  ['ns-foto','ns-id','ns-firma'].forEach(sid => { const sl=document.getElementById(sid); if(sl){ const img=sl.querySelector('img'); if(img) img.remove(); }});
+}
+
+function calcAntig() {
+  const ft = v('n_fecha_trabajo');
+  if (!ft) return;
+  const diff = new Date() - new Date(ft);
+  const y = Math.floor(diff / (365.25*24*3600*1000));
+  const m = Math.floor((diff % (365.25*24*3600*1000)) / (30.44*24*3600*1000));
+  document.getElementById('n_antiguedad').value = `${y} años, ${m} meses`;
+}
+
+// ============================================================
+// CHEQUES
+// ============================================================
+function renderCheques() {
+  const q = (v('chkSearch')||'').toLowerCase();
+  const list = q ? CACHE.cheques.filter(c => (c.cliente||'').toLowerCase().includes(q)||(c.empresa||'').toLowerCase().includes(q)) : CACHE.cheques;
+  const body = document.getElementById('chkBody');
+  if (!body) return;
+  body.innerHTML = list.length ? list.map(c => {
+    const ban = CACHE.nsf.some(n => (n.empresa||'').toUpperCase()===(c.empresa||'').toUpperCase() && n.estado==='BLOQUEADO');
+    return `<tr><td>${c.fecha||''}</td><td>${c.cliente||''}</td><td>${c.empresa||''} ${ban?'<span class="badge brd">⛔</span>':''}</td><td><strong>$${Number(c.monto||0).toLocaleString()}</strong></td><td>${c.tipo==='M'?'Manual':'Comp.'}</td><td>${c.contrato==='SI'?'<span class="badge bbl">✔</span>':'—'}</td><td>${c.notas||''}</td></tr>`;
+  }).join('') : '<tr><td colspan="7" class="empty-state">Sin registros.</td></tr>';
+}
+
+function prefillCheque(c) {
+  document.getElementById('ck_cliente').value = c.nombre||'';
+  document.getElementById('ck_empresa').value = c.maker||'';
+  document.getElementById('ck_fecha').value = new Date().toISOString().split('T')[0];
+  openModal('mCheque');
+}
+
+function chkContrato() {
+  document.getElementById('ck_alert').style.display = (parseFloat(v('ck_monto'))||0) >= 3000 ? 'flex' : 'none';
+}
+
+async function saveCheque() {
+  const empresa = v('ck_empresa').toUpperCase();
+  const monto   = parseFloat(v('ck_monto')) || 0;
+  if (!v('ck_cliente') || !monto) { alert('Cliente y monto son requeridos.'); return; }
+  const ban = CACHE.nsf.some(n => (n.empresa||'').toUpperCase()===empresa && n.estado==='BLOQUEADO');
+  if (ban && !confirm(`⛔ "${empresa}" está BLOQUEADA. ¿Continuar de todas formas?`)) return;
+
+  const data = { cliente: v('ck_cliente'), empresa, monto, tipo: v('ck_tipo'), cuenta: v('ck_cuenta'), notas: v('ck_notas'), contrato: monto >= 3000 };
+  const res = await apiSave('saveCheque', data);
+  if (res.error) { alert('Error: ' + res.error); return; }
+  CACHE.cheques.unshift({ ...data, fecha: new Date().toISOString().split('T')[0], contrato: data.contrato?'SI':'NO' });
+  closeModal('mCheque');
+  renderCheques();
+  alert('✔ Cheque registrado.');
+}
+
+// ============================================================
+// EMPRESAS
+// ============================================================
+function renderEmpresas() {
+  const q = (document.getElementById('empSearch')?.value||'').toLowerCase();
+  const list = q ? CACHE.empresas.filter(e => (e.nombre||'').toLowerCase().includes(q)) : CACHE.empresas;
+  const banSet = new Set(CACHE.nsf.filter(n=>n.estado==='BLOQUEADO').map(n=>(n.empresa||'').toUpperCase()));
+  const body = document.getElementById('empBody');
+  if (!body) return;
+  body.innerHTML = list.map(e => {
+    const ban = banSet.has((e.nombre||'').toUpperCase()) || e.estado==='BLOQUEADA';
+    const nm = (e.nombre||'').replace(/'/g,"\\'");
+    return `<tr class="${ban?'ban-row':''}"><td><strong>${e.nombre}</strong></td><td>${ban?'<span class="badge brd">⛔ NSF</span>':'<span class="badge bgn">Activa</span>'}</td><td class="mono">${e.cuenta||'—'}</td><td>${ban?`<button class="btn bw btn-sm" onclick="rehabilitar('${nm}')">✔ Rehabilitar</button>`:`<button class="btn bd btn-sm" onclick="document.getElementById('bl_empresa').value='${nm}';openModal('mBloquear')">⛔ NSF</button>`}</td></tr>`;
+  }).join('') || '<tr><td colspan="4" class="empty-state">Sin empresas.</td></tr>';
+}
+
+async function saveEmpresa() {
+  const nombre = v('em_nombre').trim().toUpperCase();
+  if (!nombre) return;
+  const data = { nombre, cuenta: v('em_cuenta'), notas: v('em_notas') };
+  const res = await apiSave('saveEmpresa', data);
+  if (res.error) { alert('Error: ' + res.error); return; }
+  CACHE.empresas.push({ ...data, estado: 'ACTIVA' });
+  closeModal('mEmpresa');
+  renderEmpresas();
+}
+
+// ============================================================
+// NSF
+// ============================================================
+function renderNSF() {
+  const q = (document.getElementById('nsfSearch')?.value||'').toLowerCase();
+  const list = q ? CACHE.nsf.filter(n=>(n.empresa||'').toLowerCase().includes(q)) : CACHE.nsf;
+  const body = document.getElementById('nsfBody');
+  if (!body) return;
+  body.innerHTML = list.length ? list.map(n => `<tr>
+    <td><strong>${n.empresa||''}</strong></td><td>${n.motivo||'—'}</td>
+    <td>${n.fecha||'—'}</td><td>$${Number(n.monto||0).toLocaleString()}</td>
+    <td>${n.estado==='BLOQUEADO'?'<span class="badge brd">BLOQUEADO</span>':'<span class="badge bgn">Rehabilitado</span>'}</td>
+    <td>${n.estado==='BLOQUEADO'?`<button class="btn bw btn-sm" onclick="rehabilitar('${(n.empresa||'').replace(/'/g,"\\'")}')">✔ Rehabilitar</button>`:'—'}</td>
+  </tr>`).join('') : '<tr><td colspan="6" class="empty-state">Sin empresas bloqueadas.</td></tr>';
+}
+
+async function doBloquear() {
+  const empresa = v('bl_empresa').trim().toUpperCase();
+  const monto   = parseFloat(v('bl_monto')) || 0;
+  if (!empresa) { alert('Ingresa el nombre de la empresa.'); return; }
+  const data = { empresa, motivo: v('bl_motivo'), monto };
+  const res  = await apiSave('bloquearNSF', data);
+  if (res.error) { alert('Error: ' + res.error); return; }
+  CACHE.nsf.push({ empresa, motivo: data.motivo, monto, fecha: new Date().toISOString().split('T')[0], estado: 'BLOQUEADO' });
+  const emp = CACHE.empresas.find(e => (e.nombre||'').toUpperCase()===empresa);
+  if (emp) emp.estado = 'BLOQUEADA';
+  closeModal('mBloquear');
+  renderNSF(); renderEmpresas();
+  alert(`⛔ Empresa "${empresa}" bloqueada.`);
+}
+
+async function rehabilitar(empresa) {
+  if (!confirm(`¿Rehabilitar "${empresa}"? Solo si ya recuperaron los fondos.`)) return;
+  const res = await apiCall({ action: 'rehabilitar', empresa });
+  if (res.error) { alert('Error: ' + res.error); return; }
+  CACHE.nsf.filter(n=>(n.empresa||'').toUpperCase()===empresa.toUpperCase()).forEach(n=>n.estado='REHABILITADO');
+  const emp = CACHE.empresas.find(e=>(e.nombre||'').toUpperCase()===empresa.toUpperCase());
+  if (emp) emp.estado = 'ACTIVA';
+  renderNSF(); renderEmpresas();
+  alert(`✔ Empresa "${empresa}" rehabilitada.`);
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+async function loadDashboard() {
+  document.getElementById('statsGrid').innerHTML = '<div class="loading-state">Cargando desde Google Sheets...</div>';
+  const res = await apiCall({ action: 'getDashboard' });
+  if (res.error) { document.getElementById('statsGrid').innerHTML = `<div class="alert ar">Error: ${res.error}</div>`; return; }
+  const s = res.stats || {};
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Clientes</div><div class="stat-num">${Number(s.totalClientes||0).toLocaleString()}</div><div class="stat-sub">En el sistema</div></div>
+    <div class="stat-card"><div class="stat-label">VIPs</div><div class="stat-num">${s.vipCount||0}</div><div class="stat-sub">Categorías A-B-C</div></div>
+    <div class="stat-card"><div class="stat-label">Cheques</div><div class="stat-num">${s.totalCheques||0}</div><div class="stat-sub">$${Number(s.totalMonto||0).toLocaleString()}</div></div>
+    <div class="stat-card"><div class="stat-label">NSF Bloqueados</div><div class="stat-num" style="color:var(--r)">${s.nsfBloqueados||0}</div><div class="stat-sub">Empresas activas</div></div>
+  `;
+  const today = new Date();
+  document.getElementById('expBody').innerHTML = (res.expirando||[]).map(c => {
+    const days = Math.round((new Date(c.id_exp)-today)/86400000);
+    const cl = days<0?'ibad':days<30?'iwarn':'';
+    return `<tr><td>${c.nombre}</td><td style="font-size:11px">${c.id_tipo||'—'}</td><td class="${cl}">${fmtDate(c.id_exp)}</td><td class="${cl}">${days<0?'VENCIDA':days+' días'}</td></tr>`;
+  }).join('') || '<tr><td colspan="4" class="empty-state">Sin IDs por vencer.</td></tr>';
+  document.getElementById('vipBody').innerHTML = (res.vips||[]).map(c =>
+    `<tr><td>${c.nombre}</td><td><span class="badge bbl">VIP ${c.vip}</span></td><td>${c.maker||'—'}</td><td class="mono">${c.tel}</td></tr>`
+  ).join('') || '<tr><td colspan="4" class="empty-state">Sin VIPs.</td></tr>';
+}
+
+// ============================================================
+// FOTOS
+// ============================================================
+function trig(id) { document.getElementById(id).click(); }
+
+function prevPhoto(input, slotId, varName) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const slot = document.getElementById(slotId);
+    const old = slot.querySelector('img'); if(old) old.remove();
+    const img = document.createElement('img'); img.src = e.target.result;
+    slot.insertBefore(img, slot.querySelector('p'));
+    window[varName] = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function rmPhoto(ev, slotId, varName) {
+  ev.stopPropagation();
+  const slot = document.getElementById(slotId);
+  const img = slot.querySelector('img'); if(img) img.remove();
+  ev.target.remove();
+  window[varName] = '';
+}
+
+document.addEventListener('paste', e => {
+  const items = (e.clipboardData||window.clipboardData).items;
+  for (let item of items) {
+    if (item.type.indexOf('image') !== -1) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const slot = document.getElementById('ns-foto');
+        if (slot && slot.closest('.panel.active')) {
+          const old = slot.querySelector('img'); if(old) old.remove();
+          const img = document.createElement('img'); img.src = ev.target.result;
+          slot.insertBefore(img, slot.querySelector('p'));
+          _nFoto = ev.target.result;
+        }
+      };
+      reader.readAsDataURL(item.getAsFile());
+    }
+  }
+});
+
+// ============================================================
+// UTILS
+// ============================================================
+function v(id)    { const el=document.getElementById(id); return el?el.value:''; }
+function esc(s)   { return (s||'').toString().replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-wrap').forEach(mw => mw.addEventListener('click', e => { if(e.target===mw) mw.classList.remove('open'); }));
+
+function fmtDate(d) {
+  if (!d) return '—';
+  try { const dt = new Date(d); if(isNaN(dt)) return d; return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`; }
+  catch { return d; }
+}
+
+function idStatus(exp) {
+  if (!exp) return 'none';
+  const diff = (new Date(exp) - new Date()) / 86400000;
+  if (diff < 0) return 'exp';
+  if (diff < 90) return 'soon';
+  return 'ok';
+}
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleDateString('es-MX',{weekday:'short',year:'numeric',month:'short',day:'numeric'}) + '  ' + new Date().toLocaleTimeString('es-MX');
+}
+</script>
+</body>
+</html>
